@@ -24,13 +24,13 @@ func (ac *Async) Add(fns ...func()) *Async {
 	for _, fn := range fns {
 		ac.wg.Add(1)
 		ac.fnCount++
-		go func(*Async) {
-			fn()
+		go func(ac *Async, nfn func()) {
+			nfn()
 			ac.fnDoneCount++
 			if ac.fnDoneCount < ac.fnCount {
-				ac.wg.Done()
+				defer ac.wg.Done()
 			}
-		}(ac)
+		}(ac, fn)
 	}
 	return ac
 }
