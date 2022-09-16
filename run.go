@@ -8,26 +8,30 @@ type Async struct {
 	fnDoneCount int
 }
 
-func (ac *Async) Callback(fn func()) *Async {
-	go func(*Async) {
+func (ac *Async) Callback(fns ...func()) *Async {
+	go func(*Async, *[]func()) {
 		for ac.fnDoneCount != ac.fnCount {
 		}
-		fn()
+		for _, fn := range fns {
+			fn()
+		}
 		ac.wg.Done()
-	}(ac)
+	}(ac, &fns)
 	return ac
 }
 
-func (ac *Async) Add(fn func()) *Async {
-	ac.wg.Add(1)
-	ac.fnCount++
-	go func(*Async) {
-		fn()
-		ac.fnDoneCount++
-		if ac.fnDoneCount < ac.fnCount {
-			ac.wg.Done()
-		}
-	}(ac)
+func (ac *Async) Add(fns ...func()) *Async {
+	for _, fn := range fns {
+		ac.wg.Add(1)
+		ac.fnCount++
+		go func(*Async) {
+			fn()
+			ac.fnDoneCount++
+			if ac.fnDoneCount < ac.fnCount {
+				ac.wg.Done()
+			}
+		}(ac)
+	}
 	return ac
 }
 
