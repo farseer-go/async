@@ -6,7 +6,9 @@
 */
 package async
 
-import "sync"
+import (
+	"sync"
+)
 
 // Async 异步结构体
 type Async struct {
@@ -14,26 +16,13 @@ type Async struct {
 	fnCount     int             // 所有需要执行的异步方法
 	fnDoneCount int             // 当前已执行完成的异步方法
 	Err         any             // 返回错误
+	CallBack    []func()        // 回调方法
 }
 
-// Callback 回调方法，Add的所有方法执行结束后执行回调方法
-func (ac *Async) Callback(fns ...func()) *Async {
-	go func(*Async, *[]func()) {
-		defer func() {
-			if err := recover(); err != nil {
-				// 打印异常，关闭资源，退出此函数
-				defer ac.wg.Done()
-				ac.Err = err
-			}
-		}()
-		for ac.fnDoneCount != ac.fnCount {
-		}
-		for _, fn := range fns {
-
-			fn()
-		}
-		ac.wg.Done()
-	}(ac, &fns)
+// ContinueWith 回调方法，Add的所有方法执行结束后执行回调方法
+func (ac *Async) ContinueWith(callbacks ...func()) *Async {
+	go ac.wg.Wait()
+	ac.CallBack = callbacks
 	return ac
 }
 
@@ -42,37 +31,48 @@ func (ac *Async) Add(fns ...func()) *Async {
 	for _, fn := range fns {
 		ac.wg.Add(1)
 		ac.fnCount++
-		go func(ac *Async, nfn func()) {
+		go func(nfn func()) {
 			defer func() {
 				if err := recover(); err != nil {
 					// 打印异常，关闭资源，退出此函数
-					ac.fnDoneCount++
-					if ac.fnDoneCount < ac.fnCount {
-						defer ac.wg.Done()
-					}
 					ac.Err = err
+				}
+				ac.fnDoneCount++
+				if ac.fnDoneCount < ac.fnCount {
+					defer ac.wg.Done()
+				} else if ac.CallBack != nil {
+					callBackFns := ac.CallBack
+					go func() {
+						defer func() {
+							if err := recover(); err != nil {
+								// 打印异常，关闭资源，退出此函数
+								ac.Err = err
+							}
+							defer ac.wg.Done()
+						}()
+						for _, fn := range callBackFns {
+							fn()
+						}
+					}()
+				} else {
+					defer ac.wg.Done()
 				}
 			}()
 			nfn()
-			ac.fnDoneCount++
-			if ac.fnDoneCount < ac.fnCount {
-				defer ac.wg.Done()
-			}
-		}(ac, fn)
+		}(fn)
 	}
 	return ac
 }
 
 // New 初始化
 func New() *Async {
-	asyncStruct := &Async{}
-	wg := sync.WaitGroup{}
-	asyncStruct.wg = &wg
-	return asyncStruct
+	return &Async{
+		wg: &sync.WaitGroup{},
+	}
 }
 
-// Run 执行异步方法
-func (ac *Async) Run() *Async {
+// Wait 等待
+func (ac *Async) Wait() *Async {
 	ac.wg.Wait()
 	return ac
 }
