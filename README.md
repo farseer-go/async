@@ -49,3 +49,9 @@ func main() {
 async := async.New()
 async.Add(func() {a("我是a方法")}).Callback(func(){b("我是回调b方法")}).Run()
 }
+
+
+### 获取错误
+async := async.New()
+async.Add(func() {a("我是a方法")}).Callback(func(){b("我是回调b方法")}).Run()
+当async.Err为nil时表示运行发生没有错误，当Err不为nil说明有报错

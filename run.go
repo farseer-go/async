@@ -13,14 +13,23 @@ type Async struct {
 	wg          *sync.WaitGroup
 	fnCount     int
 	fnDoneCount int
+	Err         any
 }
 
 // Callback 回调方法，Add的所有方法执行结束后执行回调方法
 func (ac *Async) Callback(fns ...func()) *Async {
 	go func(*Async, *[]func()) {
+		defer func() {
+			if err := recover(); err != nil {
+				// 打印异常，关闭资源，退出此函数
+				defer ac.wg.Done()
+				ac.Err = err
+			}
+		}()
 		for ac.fnDoneCount != ac.fnCount {
 		}
 		for _, fn := range fns {
+
 			fn()
 		}
 		ac.wg.Done()
@@ -34,6 +43,16 @@ func (ac *Async) Add(fns ...func()) *Async {
 		ac.wg.Add(1)
 		ac.fnCount++
 		go func(ac *Async, nfn func()) {
+			defer func() {
+				if err := recover(); err != nil {
+					// 打印异常，关闭资源，退出此函数
+					ac.fnDoneCount++
+					if ac.fnDoneCount < ac.fnCount {
+						defer ac.wg.Done()
+					}
+					ac.Err = err
+				}
+			}()
 			nfn()
 			ac.fnDoneCount++
 			if ac.fnDoneCount < ac.fnCount {
