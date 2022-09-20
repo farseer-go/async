@@ -8,12 +8,12 @@ package async
 
 import "sync"
 
-// Async 异步结构体，wg：sync.WaitGroup，fnCount为所有需要执行的异步方法，fnDoneCount为当前已执行完成的异步方法
+// Async 异步结构体
 type Async struct {
-	wg          *sync.WaitGroup
-	fnCount     int
-	fnDoneCount int
-	Err         any
+	wg          *sync.WaitGroup // sync.WaitGroup
+	fnCount     int             // 所有需要执行的异步方法
+	fnDoneCount int             // 当前已执行完成的异步方法
+	Err         any             // 返回错误
 }
 
 // Callback 回调方法，Add的所有方法执行结束后执行回调方法
@@ -63,7 +63,7 @@ func (ac *Async) Add(fns ...func()) *Async {
 	return ac
 }
 
-// New 初始化异步执行结构体asyncStruct
+// New 初始化
 func New() *Async {
 	asyncStruct := &Async{}
 	wg := sync.WaitGroup{}
