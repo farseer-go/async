@@ -20,10 +20,9 @@ type Async struct {
 }
 
 // ContinueWith 回调方法，Add的所有方法执行结束后执行回调方法
-func (ac *Async) ContinueWith(callbacks ...func()) *Async {
+func (ac *Async) ContinueWith(callbacks ...func()) {
 	go ac.wg.Wait()
 	ac.CallBack = callbacks
-	return ac
 }
 
 // Add 添加异步执行的方法
@@ -72,7 +71,6 @@ func New() *Async {
 }
 
 // Wait 等待
-func (ac *Async) Wait() *Async {
+func (ac *Async) Wait() {
 	ac.wg.Wait()
-	return ac
 }
