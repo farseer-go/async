@@ -7,70 +7,66 @@
 package async
 
 import (
+	"errors"
+	"fmt"
 	"sync"
 )
 
 // Async 异步结构体
 type Async struct {
-	wg          *sync.WaitGroup // sync.WaitGroup
-	fnCount     int             // 所有需要执行的异步方法
-	fnDoneCount int             // 当前已执行完成的异步方法
-	Err         any             // 返回错误
-	CallBack    []func()        // 回调方法
+	wg  *sync.WaitGroup // sync.WaitGroup
+	err error           // 返回错误
 }
 
-// ContinueWith 回调方法，Add的所有方法执行结束后执行回调方法
-func (ac *Async) ContinueWith(callbacks ...func()) {
-	go ac.wg.Wait()
-	ac.CallBack = callbacks
+// Parallel 并行执行fns
+func Parallel(fns ...func()) *Async {
+	async := &Async{
+		wg: &sync.WaitGroup{},
+	}
+	if len(fns) > 0 {
+		return async.Add(fns...)
+	}
+	return async
 }
 
 // Add 添加异步执行的方法
 func (ac *Async) Add(fns ...func()) *Async {
 	for _, fn := range fns {
 		ac.wg.Add(1)
-		ac.fnCount++
-		go func(nfn func()) {
-			defer func() {
-				if err := recover(); err != nil {
-					// 打印异常，关闭资源，退出此函数
-					ac.Err = err
-				}
-				ac.fnDoneCount++
-				if ac.fnDoneCount < ac.fnCount {
-					defer ac.wg.Done()
-				} else if ac.CallBack != nil {
-					callBackFns := ac.CallBack
-					go func() {
-						defer func() {
-							if err := recover(); err != nil {
-								// 打印异常，关闭资源，退出此函数
-								ac.Err = err
-							}
-							defer ac.wg.Done()
-						}()
-						for _, fn := range callBackFns {
-							fn()
-						}
-					}()
-				} else {
-					defer ac.wg.Done()
-				}
-			}()
-			nfn()
-		}(fn)
+		go ac.executeFunc(fn)
 	}
 	return ac
 }
 
-// New 初始化
-func New() *Async {
-	return &Async{
-		wg: &sync.WaitGroup{},
-	}
+func (ac *Async) executeFunc(fn func()) {
+	defer func() {
+		// 异常处理
+		if err := recover(); err != nil {
+			switch err.(type) {
+			case error:
+				ac.err = err.(error)
+			default:
+				ac.err = errors.New(fmt.Sprint(err))
+			}
+		}
+		ac.wg.Done()
+	}()
+	fn()
 }
 
-// Wait 等待
-func (ac *Async) Wait() {
+// ContinueWith 当并行任务执行完后，以非阻塞方式执行callbacks
+func (ac *Async) ContinueWith(callbacks ...func()) {
+	// 使用异步等待，并执行callbacks
+	go func() {
+		ac.wg.Wait()
+		for _, callback := range callbacks {
+			callback()
+		}
+	}()
+}
+
+// Wait 阻塞等待执行完成
+func (ac *Async) Wait() error {
 	ac.wg.Wait()
+	return ac.err
 }
