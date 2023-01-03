@@ -9,37 +9,68 @@ package test
 import (
 	"github.com/farseer-go/async"
 	"github.com/stretchr/testify/assert"
+	"sync"
 	"testing"
 	"time"
 )
 
 func TestAsync_ContinueWith(t *testing.T) {
+	var lock sync.Mutex
 	var count = 0
-	async.Parallel(func() {
-		count += 1
-	}, func() {
-		count += 2
-	}).Add(func() {
-		count += 3
-	}, func() {
-		count += 4
-	}).ContinueWith(func() {
-		count += 5
-	})
+	lock.Lock()
+	async.Parallel(
+		func() {
+			lock.Lock()
+			defer lock.Unlock()
+			count += 1
+		},
+		func() {
+			lock.Lock()
+			defer lock.Unlock()
+			count += 2
+		}).
+		Add(func() {
+			lock.Lock()
+			defer lock.Unlock()
+			count += 3
+		}, func() {
+			lock.Lock()
+			defer lock.Unlock()
+			count += 4
+		}).
+		ContinueWith(func() {
+			lock.Lock()
+			defer lock.Unlock()
+			count += 5
+		})
+
 	count = 10
+	lock.Unlock()
 	time.Sleep(10 * time.Millisecond)
+
+	lock.Lock()
+	defer lock.Unlock()
 	assert.Equal(t, 25, count)
 }
 
 func TestAsync_Wait(t *testing.T) {
+	var lock sync.Mutex
 	var count = 0
 	_ = async.Parallel(func() {
+		lock.Lock()
+		defer lock.Unlock()
 		count += 1
 	}, func() {
+		lock.Lock()
+		defer lock.Unlock()
 		count += 2
 	}).Add(func() {
+		lock.Lock()
+		defer lock.Unlock()
 		count += 3
 	}, func() {
+		lock.Lock()
+		defer lock.Unlock()
 		count += 4
 	}).Wait()
 	count *= 2
