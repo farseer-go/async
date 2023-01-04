@@ -80,16 +80,12 @@ func TestAsync_Wait(t *testing.T) {
 func TestAsync_Error(t *testing.T) {
 	var count = 0
 	var num = 0
-	err := async.Parallel(func() {
-		count = 1
-	}).Add(func() {
+	err := async.Parallel().Add(func() {
 		count = count / num
 	}).Wait()
 	assert.NotEqual(t, err, nil)
 
-	err = async.Parallel(func() {
-		count = 1
-	}).Add(func() {
+	err = async.Parallel().Add(func() {
 		panic("error")
 	}).Wait()
 
