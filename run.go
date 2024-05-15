@@ -9,6 +9,7 @@ package async
 import (
 	"errors"
 	"fmt"
+	"github.com/timandy/routine"
 	"sync"
 )
 
@@ -27,7 +28,9 @@ func New() *worker {
 // Add 添加异步执行的方法
 func (ac *worker) Add(fn func()) {
 	ac.wg.Add(1)
-	go ac.executeFunc(fn)
+	routine.Go(func() {
+		ac.executeFunc(fn)
+	})
 }
 
 func (ac *worker) executeFunc(fn func()) {
@@ -49,12 +52,12 @@ func (ac *worker) executeFunc(fn func()) {
 // ContinueWith 当并行任务执行完后，以非阻塞方式执行callbacks
 func (ac *worker) ContinueWith(callbacks ...func()) {
 	// 使用异步等待，并执行callbacks
-	go func() {
+	routine.Go(func() {
 		ac.wg.Wait()
 		for _, callback := range callbacks {
 			callback()
 		}
-	}()
+	})
 }
 
 // Wait 阻塞等待执行完成
