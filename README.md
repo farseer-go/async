@@ -25,26 +25,13 @@
 ## 1、同步执行（阻塞）
 本着farseer-go极简、优雅风格，使用async组件也是非常简单的：
 
-```go
-func Parallel(fns ...func())
-```
-- `fns`：执行方法（支持传入多个）
-
-```go
-func Add(fns ...func())
-```
-- `fns`：添加异步执行方法（支持传入多个）
-
-```go
-func Wait(fns ...func())
-```
-- 阻塞等待
-
-
 _演示：_
 ```go
 var count = 0
-_ = Parallel(func() { count += 1}).Add(func() { count += 2 }).Wait() // 阻塞等待，直到两个函数执行完
+worker := async.New()
+worker.Add(func() { count += 1})
+worker.Add(func() { count += 2})
+worker.Wait() // 阻塞等待，直到两个函数执行完
 count *= 2  // 由于阻塞，所以这里最后执行
 // count = 6 // 最终结果
 ```
@@ -59,9 +46,10 @@ func ContinueWith(callbacks ...func())
 _演示：_
 ```go
 var count = 0
-Parallel(func() { count += 1}).Add(func() { count += 2 }).ContinueWith(func() {
-    count += 3
-})
+worker := async.New()
+worker.Add(func() { count += 1})
+worker.Add(func() { count += 2 })
+worker.ContinueWith(func() { count += 3 })
 count = 10  // 由于异步，这里会优先执行
 time.Sleep(10 * time.Millisecond)
 // count = 16 // 最终结果

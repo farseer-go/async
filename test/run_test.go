@@ -18,31 +18,32 @@ func TestAsync_ContinueWith(t *testing.T) {
 	var lock sync.Mutex
 	var count = 0
 	lock.Lock()
-	async.Parallel(
-		func() {
-			lock.Lock()
-			defer lock.Unlock()
-			count += 1
-		},
-		func() {
-			lock.Lock()
-			defer lock.Unlock()
-			count += 2
-		}).
-		Add(func() {
-			lock.Lock()
-			defer lock.Unlock()
-			count += 3
-		}, func() {
-			lock.Lock()
-			defer lock.Unlock()
-			count += 4
-		}).
-		ContinueWith(func() {
-			lock.Lock()
-			defer lock.Unlock()
-			count += 5
-		})
+	worker := async.New()
+	worker.Add(func() {
+		lock.Lock()
+		defer lock.Unlock()
+		count += 1
+	})
+	worker.Add(func() {
+		lock.Lock()
+		defer lock.Unlock()
+		count += 2
+	})
+	worker.Add(func() {
+		lock.Lock()
+		defer lock.Unlock()
+		count += 3
+	})
+	worker.Add(func() {
+		lock.Lock()
+		defer lock.Unlock()
+		count += 4
+	})
+	worker.ContinueWith(func() {
+		lock.Lock()
+		defer lock.Unlock()
+		count += 5
+	})
 
 	count = 10
 	lock.Unlock()
@@ -56,23 +57,28 @@ func TestAsync_ContinueWith(t *testing.T) {
 func TestAsync_Wait(t *testing.T) {
 	var lock sync.Mutex
 	var count = 0
-	_ = async.Parallel(func() {
+	worker := async.New()
+	worker.Add(func() {
 		lock.Lock()
 		defer lock.Unlock()
 		count += 1
-	}, func() {
+	})
+	worker.Add(func() {
 		lock.Lock()
 		defer lock.Unlock()
 		count += 2
-	}).Add(func() {
+	})
+	worker.Add(func() {
 		lock.Lock()
 		defer lock.Unlock()
 		count += 3
-	}, func() {
+	})
+	worker.Add(func() {
 		lock.Lock()
 		defer lock.Unlock()
 		count += 4
-	}).Wait()
+	})
+	worker.Wait()
 	count *= 2
 	assert.Equal(t, 20, count)
 }
@@ -80,20 +86,18 @@ func TestAsync_Wait(t *testing.T) {
 func TestAsync_Error(t *testing.T) {
 	var count = 0
 	var num = 0
-	err := async.Parallel().Add(func() {
+	worker := async.New()
+	worker.Add(func() {
 		count = count / num
-	}).Wait()
+	})
+	err := worker.Wait()
 	assert.NotEqual(t, err, nil)
 
-	err = async.Parallel().Add(func() {
+	worker = async.New()
+	worker.Add(func() {
 		panic("error")
-	}).Wait()
+	})
+	err = worker.Wait()
 
 	assert.NotEqual(t, err, nil)
-}
-
-func TestAsync_Parallel(t *testing.T) {
-	async := async.Parallel()
-	assert.NotEqual(t, async, nil)
-
 }

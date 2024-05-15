@@ -12,33 +12,25 @@ import (
 	"sync"
 )
 
-// Async 异步结构体
-type Async struct {
+// worker 异步结构体
+type worker struct {
 	wg  *sync.WaitGroup // sync.WaitGroup
 	err error           // 返回错误
 }
 
-// Parallel 并行执行fns
-func Parallel(fns ...func()) *Async {
-	async := &Async{
+func New() *worker {
+	return &worker{
 		wg: &sync.WaitGroup{},
 	}
-	if len(fns) > 0 {
-		return async.Add(fns...)
-	}
-	return async
 }
 
 // Add 添加异步执行的方法
-func (ac *Async) Add(fns ...func()) *Async {
-	for _, fn := range fns {
-		ac.wg.Add(1)
-		go ac.executeFunc(fn)
-	}
-	return ac
+func (ac *worker) Add(fn func()) {
+	ac.wg.Add(1)
+	go ac.executeFunc(fn)
 }
 
-func (ac *Async) executeFunc(fn func()) {
+func (ac *worker) executeFunc(fn func()) {
 	defer func() {
 		// 异常处理
 		if err := recover(); err != nil {
@@ -55,7 +47,7 @@ func (ac *Async) executeFunc(fn func()) {
 }
 
 // ContinueWith 当并行任务执行完后，以非阻塞方式执行callbacks
-func (ac *Async) ContinueWith(callbacks ...func()) {
+func (ac *worker) ContinueWith(callbacks ...func()) {
 	// 使用异步等待，并执行callbacks
 	go func() {
 		ac.wg.Wait()
@@ -66,7 +58,7 @@ func (ac *Async) ContinueWith(callbacks ...func()) {
 }
 
 // Wait 阻塞等待执行完成
-func (ac *Async) Wait() error {
+func (ac *worker) Wait() error {
 	ac.wg.Wait()
 	return ac.err
 }
